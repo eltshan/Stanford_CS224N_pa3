@@ -34,7 +34,7 @@ public class ClassifierBased implements CoreferenceSystem {
 			 * TODO: Create a set of active features
 			 */
 
-			Feature.ExactMatch.class, Feature.HeadWordMatch.class,
+			Feature.ExactMatch.class, Feature.HeadWordMatch.class, Feature.distance.class,
 			// skeleton for how to create a pair feature
 			// Pair.make(Feature.IsFeature1.class, Feature.IsFeature2.class),
 	});
@@ -73,7 +73,12 @@ public class ClassifierBased implements CoreferenceSystem {
 				 * TODO: Add features to return for specific classes. Implement
 				 * calculating values of features here.
 				 */
-			} else {
+
+			} else if (clazz.equals(Feature.distance.class)) {
+				return new Feature.distance(onPrix.headWordIndex - candidate.headWordIndex);
+			}
+
+			else {
 				throw new IllegalArgumentException("Unregistered feature: " + clazz);
 			}
 		}

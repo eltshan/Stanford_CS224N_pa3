@@ -191,6 +191,13 @@ public interface Feature {
 			super(headWordMatch);
 		}
 	}
+
+	public static class distance extends IntIndicator {
+		public distance(int distance) {
+			super(distance);
+		}
+	}
+
 	/*
 	 * TODO: Add values to the indicators here.
 	 */

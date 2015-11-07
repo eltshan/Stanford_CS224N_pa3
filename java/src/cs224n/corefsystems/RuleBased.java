@@ -9,6 +9,7 @@ import java.util.Map;
 import cs224n.coref.ClusteredMention;
 import cs224n.coref.Document;
 import cs224n.coref.Entity;
+import cs224n.coref.Gender;
 import cs224n.coref.Mention;
 import cs224n.coref.Name;
 import cs224n.coref.Pronoun;
@@ -18,19 +19,29 @@ import cs224n.util.CounterMap;
 import cs224n.util.Pair;
 
 public class RuleBased implements CoreferenceSystem {
-	CounterMap<String, String> heads;
-	HashMap<Mention, ClusteredMention> clusterMap;
+	CounterMap<String, Gender> genderMap;
+	CounterMap<String, String> pro_map;
 
 	public void train(Collection<Pair<Document, List<Entity>>> trainingData) {
 		// TODO Auto-generated method stub
-		heads = new CounterMap<String, String>();
+		genderMap = new CounterMap<String, Gender>();
 
 		for (Pair<Document, List<Entity>> pair : trainingData) {
 
 			for (Entity entity : pair.getSecond()) {
 				for (Pair<Mention, Mention> mentionPair : entity.orderedMentionPairs()) {
+					Mention m1 = mentionPair.getFirst();
+					Mention m2 = mentionPair.getSecond();
+					boolean tmp = sameMention(mentionPair.getFirst(), mentionPair.getSecond());
+					Pronoun p1 = Pronoun.valueOrNull(m1.gloss());
+					if (p1 != null && !Pronoun.isSomePronoun(m2.gloss())) {
+						if (p1.gender == Gender.FEMALE || p1.gender == Gender.MALE) {
+							genderMap.incrementCount(m2.gloss(), p1.gender, 1);
+							//;System.out.println(m2.gloss() + " gender is: " + p1.gender);
+						}
 
-					heads.incrementCount(mentionPair.getFirst().headWord(), mentionPair.getSecond().headWord(), 1.0);
+					}
+
 				}
 
 			}
@@ -41,18 +52,23 @@ public class RuleBased implements CoreferenceSystem {
 	@Override
 	public List<ClusteredMention> runCoreference(Document doc) {
 
-		List<ClusteredMention> mentions = new ArrayList<ClusteredMention>();
-		Map<String, Entity> clusters = new HashMap<String, Entity>();
-		List<ClusteredMention> tmp_mentions = new ArrayList<ClusteredMention>();
+		List<ClusteredMention> mentions1 = new ArrayList<ClusteredMention>();
+		List<ClusteredMention> mentions2 = new ArrayList<ClusteredMention>();
 
-		// (for each mention...)
+		List<ClusteredMention> mentions3 = new ArrayList<ClusteredMention>();
+
+		Map<String, Entity> clusters = new HashMap<String, Entity>();
+		List<ClusteredMention> tmp_mentions1 = new ArrayList<ClusteredMention>();
+		List<ClusteredMention> tmp_mentions2 = new ArrayList<ClusteredMention>();
+		List<ClusteredMention> tmp_mentions3 = new ArrayList<ClusteredMention>();
+
 		for (Mention m : doc.getMentions()) {
 			boolean flag = false;
 
-			for (ClusteredMention cm : tmp_mentions) {
+			for (ClusteredMention cm : tmp_mentions1) {
 				for (Mention m2 : cm.entity.mentions) {
 					if (sameMention(m, m2)) {
-						mentions.add(m.markCoreferent(cm.entity));
+						mentions1.add(m.markCoreferent(cm.entity));
 						flag = true;
 						break;
 					}
@@ -64,13 +80,108 @@ public class RuleBased implements CoreferenceSystem {
 			}
 			if (flag == false) {
 				ClusteredMention clm = m.markSingleton();
-				tmp_mentions.add(clm);
-				mentions.add(clm);
+				tmp_mentions1.add(clm);
+				mentions1.add(clm);
 			}
 
 		}
-		return mentions;
 
+		// // pass one
+		// for (Mention m : doc.getMentions()) {
+		// boolean flag = false;
+		//
+		// for (ClusteredMention cm : tmp_mentions1) {
+		// for (Mention m2 : cm.entity.mentions) {
+		// if (sameMentionPass1(m, m2)) {
+		// mentions1.add(m.markCoreferent(cm.entity));
+		// flag = true;
+		// break;
+		// }
+		//
+		// }
+		// if (flag)
+		// break;
+		//
+		// }
+		// if (flag == false) {
+		// ClusteredMention clm = m.markSingleton();
+		// tmp_mentions1.add(clm);
+		// mentions1.add(clm);
+		// }
+		//
+		// }
+		//
+		// // pass two
+		// for (Mention m : doc.getMentions()) {
+		// boolean flag = false;
+		//
+		// for (ClusteredMention cm : mentions1) {
+		// for (Mention m2 : cm.entity.mentions) {
+		// if (sameMentionPass2(m, m2)) {
+		// mentions2.add(m.markCoreferent(cm.entity));
+		// flag = true;
+		// break;
+		// }
+		//
+		// }
+		// if (flag)
+		// break;
+		//
+		// }
+		// if (flag == false) {
+		// ClusteredMention clm = m.markSingleton();
+		// mentions1.add(clm);
+		// mentions2.add(clm);
+		// }
+		//
+		// }
+		//
+		// // pass three
+		// for (Mention m : doc.getMentions()) {
+		// boolean flag = false;
+		//
+		// for (ClusteredMention cm : mentions2) {
+		// for (Mention m2 : cm.entity.mentions) {
+		// if (sameMentionPass3(m, m2)) {
+		// mentions3.add(m.markCoreferent(cm.entity));
+		// flag = true;
+		// break;
+		// }
+		//
+		// }
+		// if (flag)
+		// break;
+		//
+		// }
+		// if (flag == false) {
+		// ClusteredMention clm = m.markSingleton();
+		// mentions2.add(clm);
+		// mentions3.add(clm);
+		// }
+		//
+		// }
+		//
+		return mentions1;
+
+	}
+
+	boolean sameGender(Mention m1, Mention m2) {
+		// Pronoun p1 = Pronoun.valueOrNull(m1.gloss());
+		// Pronoun p2 = Pronoun.valueOrNull(m2.gloss());
+		// if (p1 == null && p2 == null)
+		// return false;
+		// if (p1 != null && p2 != null)
+		// return false;
+		// if (p1 != null && genderMap.getCount(m2.gloss(), p1.gender) > 0) {
+		// // System.out.println(p1.gender + " " + m2.gloss());
+		// return true;
+		// }
+		// if (p2 != null && genderMap.getCount(m1.gloss(), p2.gender) > 0) {
+		// // System.out.println(p2.gender + " " + m1.gloss());
+		//
+		// return true;
+		// }
+		return false;
 	}
 
 	boolean sameMention(Mention m1, Mention m2) {
@@ -83,7 +194,9 @@ public class RuleBased implements CoreferenceSystem {
 			return false;
 		if (!sameNumberOrUnknown(m1, m2))
 			return false;
-
+		if (Pronoun.isSomePronoun(m2.gloss()) && m1.sentence.equals(m2.sentence)
+				&& ((m2.headWordIndex - m1.headWordIndex) > 0) && ((m2.headWordIndex - m1.headWordIndex) < 5))
+			return true;
 		if (!sameNE(m1, m2)) {
 			return false;
 		}
@@ -95,6 +208,7 @@ public class RuleBased implements CoreferenceSystem {
 		if (!sameLemma(m1, m2)) {
 			return false;
 		}
+
 		if (contains(m1, m2)) {
 			return true;
 		}
@@ -102,30 +216,54 @@ public class RuleBased implements CoreferenceSystem {
 
 	}
 
-	// boolean nameMatch(Mention m1, Mention m2) {
-	// Name name1 = Name.get(m1.gloss());
-	// Name name1 = Name.get(m1.gloss());
-	// if (name1 != null) {
-	//
-	// }
-	// }
+	boolean sameMentionPass1(Mention m1, Mention m2) {
+		if (exactMatch(m1, m2))
+			return true;
+		if (headMatch(m1, m2))
+			return true;
+		return false;
+
+	}
+
+	boolean sameMentionPass2(Mention m1, Mention m2) {
+
+		if (!sameGenderOrUnknown(m1, m2))
+			return false;
+		if (!sameNumberOrUnknown(m1, m2))
+			return false;
+		if (Pronoun.isSomePronoun(m2.gloss()) && m1.sentence.equals(m2.sentence)
+				&& ((m2.headWordIndex - m1.headWordIndex) > 0) && ((m2.headWordIndex - m1.headWordIndex) < 5))
+			return true;
+		if (!sameNE(m1, m2)) {
+			return false;
+		}
+
+		if (pronouAndNameAgree(m1, m2)) {
+			return true;
+		}
+
+		if (!sameLemma(m1, m2)) {
+			return false;
+		}
+
+		if (contains(m1, m2)) {
+			return true;
+		}
+		return true;
+
+	}
 
 	boolean pronouAndNameAgree(Mention m1, Mention m2) {
-		Pronoun p1 = Pronoun.getPronoun(m1.gloss());
-		Pronoun p2 = Pronoun.getPronoun(m2.gloss());
+		Pronoun p1 = Pronoun.valueOrNull(m1.gloss());// getPronoun(m1.gloss());
+
+		// if (p1 == null && m2.gloss().equals("it"))
+		// return true;
+
+		Pronoun p2 = Pronoun.valueOrNull(m2.gloss());// getPronoun(m2.gloss());
 		Name n1 = Name.get(m1.gloss());
 		Name n2 = Name.get(m2.gloss());
-		if (n1 != null && p2 != null) {
-			if (n1.gender == p2.gender && p2.speaker == Speaker.THIRD_PERSON) {
-				return true;
-			}
-		}
-		if (n2 != null && p1 != null) {
-			if (n2.gender == p1.gender && p1.speaker == Speaker.THIRD_PERSON) {
-				return true;
-			}
-		}
-		if (n1 != null && n2 != null && n1.gloss == n2.gloss)
+
+		if (n1 != null && n2 != null && n1.gloss.equals(n2.gloss))
 			return true;
 
 		if (p1 == null || p2 == null)
@@ -173,6 +311,8 @@ public class RuleBased implements CoreferenceSystem {
 		if (pair.getSecond() && pair.getFirst())
 			return true;
 		if (!pair.getFirst())
+			return true;
+		if (sameGender(m1, m2))
 			return true;
 		return false;
 	}
